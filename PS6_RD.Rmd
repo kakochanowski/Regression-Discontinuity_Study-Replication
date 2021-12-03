@@ -87,6 +87,7 @@ Drop all other variables. If needed, give the variables you are keeping more int
 ```{r}
 reg_panes_orig <- read_dta("/Users/Kiersten/Documents/School/S2_Causal_Inf/PS6_Kochanowski/Data/reg_panes.dta")
 reg_panes <- select(reg_panes_orig, aprobado, untracked07, h_89, hv34, ind_reest, newtreat, geo, bl_medad, lnbl_ytoth_pc, bl_hhsize, bl_meduc, missbl_medad, misslnbl_ytoth_pc,missbl_hhsize, missbl_meduc, sexo, edad, aniosed07, misssexo, missedad, missaniosed)
+View(reg_panes)
 ```
 
 
@@ -96,7 +97,9 @@ reg_panes <- select(reg_panes_orig, aprobado, untracked07, h_89, hv34, ind_reest
 
 **Code:**
 ```{r}
-
+reg_panes$treat<-0
+reg_panes$treat[reg_panes$aprobado==1]<- 1
+reg_panes$treat[reg_panes$untracked07==1]<-NA
 ```
 
 
@@ -105,11 +108,35 @@ reg_panes <- select(reg_panes_orig, aprobado, untracked07, h_89, hv34, ind_reest
 Note: This is how the authors modify this variable in their code. It seems counter intuitive and does not correspond to the description of how this variable is coded in the survey questionnaire as reported in their appendix though it does correspond to their discussion in footnote 12. My guess is the transcription/translation of the survey question is incorrect.
 
 **Code:**
+```{r}
+table(reg_panes$h_89)
+table(reg_panes$hv34)
+
+#2007
+reg_panes$sup07<-0
+reg_panes$sup07[reg_panes$h_89==9] <- NA
+reg_panes$sup07[reg_panes$h_89==2] <- 0
+reg_panes$sup07[reg_panes$h_89==1] <- 0.5
+reg_panes$sup07[reg_panes$h_89==3] <- 1
+
+#2008
+reg_panes$sup08<-0
+reg_panes$sup08[reg_panes$hv34==9] <- NA
+reg_panes$sup08[reg_panes$hv34==2] <- 0
+reg_panes$sup08[reg_panes$hv34==1] <- 0.5
+reg_panes$sup08[reg_panes$hv34==3] <- 1
+
+```
+
 
 
 ## **Question 5: Generate a variable that is the square of predicted income.**
 
 **Code:**
+```{r}
+reg_panes$ind_reest_sqd <- reg_panes$ind_reest^2
+```
+
 
 # We start by reproducing the main figures (2,3,and 4) of the paper as good figures are key to any regression discontinuity paper.
 
