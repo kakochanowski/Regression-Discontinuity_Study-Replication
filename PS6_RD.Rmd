@@ -1,0 +1,227 @@
+---
+title: 'Problem Set 6: Regression Discontinuity'
+author: "Claire Duquennois"
+output:
+  html_document:
+    number_sections: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+***Name:***
+
+
+Instructions: 
+
+- This assignment is an individual assignment. You may discuss your responses in small groups or reach out to a classmate if you are having difficulties with coding but your code and answers must reflect your individual efforts and be written using your own words. Identical assignments will be given a zero grade. 
+
+- You must post your code in a private repo on GitHub and invite Erica and I as collaborators. 
+
+- You must update your work on GitHub frequently through commits where we can observe which lines you most recently worked on when we click on the repo history. This is done very easily if you are using Git correctly which is part of what we are assessing with this assignment. Make sure you make at least five commits that highlight your most recent changes. 
+
+
+
+# Empirical Analysis using Data from Manacorda, Miguel, & Vigorito (2011, American Economic Journal: Applied Economics)
+
+
+This exercise uses data from Manacorda, Miguel, & Vigorito's paper, "Government Transfers and Political Support," published in the *American Economic Journal: Applied Economics* in 2011. This paper studies how receipt of a government anti-poverty cash transfer changes how beneficiary households support and view the government. 
+
+
+# Finding the data
+
+The data can be found on Edward Miguel's faculty website. Download and extract the contents from the `Government_Transfers_replication.zip` file. 
+
+
+
+# Set up and constructing the data
+
+The original data used in the paper is confidential. The authors instead provide the `reg_panes.dta` data file which is anonymized and created from the original data. 
+
+## Question: Loading the Packages
+
+Load any R packages you will be using:
+**Code:**
+
+
+
+## Question: Open the `reg_panes.dta` file. To complete this problem set you will need the following variables from this data file: 
+
+| Name            |Description                                        |
+|-----------------|---------------------------------------------------|
+|aprobado         |Ever received PANES 2005-2007                      |
+|untracked07      | Untracked in 2007                                 |
+|h_89             |Supports current government 2007 [1 to 3]|         |
+|hv34             |Supports current government 2008 [1 to 3]|         | 
+|ind_reest        |Predicted Income                                   | 
+|newtreat         |PANES eligibility                                  |
+|geo              |Geographic locality                                |
+|bl_medad         |Mean age                                           |
+|lnbl_ytoth_pc    |Log per capita income                              |
+|bl_hhsize        |Mean household size                                |
+|bl_meduc         |Mean education                                     |
+|missbl_medad     |Missing mean age                                   |
+|misslnbl_ytoth_pc|Missing log per capita income                      |
+|missbl_hhsize    |Missing mean household size                        |
+|missbl_meduc     |Missing mean education                             |
+|sexo             |Respondent is female                               |
+|edad             |Respondent age                                     |
+|aniosed07        |Education in 2007                                  |
+|misssexo         |Missing gender                                     |
+|missedad         |Missing age                                        |
+|missaniosed      |Missing education                                  |
+
+
+Drop all other variables. If needed, give the variables you are keeping more intuitive names. 
+
+
+**Code:**
+
+
+
+## **Question: The data as downloaded will require that you clean the variables of interest and construct a new dataset to generate the graphs. Start by generating the following cleaned variable:**
+
+-An indicator for receiving PANES that is NA if a respondent is untracked in 2007
+
+**Code:**
+
+## **Question: We are going to re-scale the variables that indicate support for the current government so that responses range from 0 to 1. To do this, tabulate the current variable to see how it is distributed and then generate a variable that will be NA if it is currently coded as 9, 0 if currently 2, 0.5 if currently 1 and 1 if currently 3. Do this for both the 2007 and 2008 variable. **
+
+Note: This is how the authors modify this variable in their code. It seems counter intuitive and does not correspond to the description of how this variable is coded in the survey questionnaire as reported in their appendix though it does correspond to their discussion in footnote 12. My guess is the transcription/translation of the survey question is incorrect.
+
+**Code:**
+
+
+## **Question: Generate a variable that is the square of predicted income.**
+
+**Code:**
+
+# We start by reproducing the main figures (2,3,and 4) of the paper as good figures are key to any regression discontinuity paper.
+
+
+## **Question: The data consists of over 3000 observations. How many points are plotted on these figures? How should we interpret the y axis? What does each point below the threshold represent? What does each point above the threshold represent?**
+
+**Answer:**
+
+
+
+## **Question: Why is the number of points above the threshold different from the number below? **
+
+**Answer:**
+
+
+## **Question: Replicating these figures will require restructuring our data and calculating the values that are plotted. Generate a variable that will indicate the percentile group the observation is in. Note the difference in the number of percentile groups above and below the threshold. **
+
+Note: you may find the `xtile` function in R useful.
+
+**Code:**
+
+## **Question: For each of the percentile groups, calculate the mean of each of the variables we will use for plotting: predicted income, receipt of PANES, support for the government in 2007, and support for the government in 2008.**
+
+**Code:**
+
+## **Question: Replicate figure 2. Make the figure as clear and informative as possible. You may want to create an indicator variable for percentiles above and below the threshold. ** 
+
+**Code:**
+
+
+## **Question: What is the purpose of this figure and what should we take away from it? **
+
+**Answer:**
+
+
+
+## **Question: Replicate figures 3 and 4. Make these figures as clear and informative as possible.  **
+
+**Code:**
+
+
+## **Question: Interpret these figures. What should we take away from them? **
+
+**Answer:** 
+
+
+## **Question: Replicate the results of the three regressions estimated in the first column of table 1. Present your results in a table. Interpret the coefficients.**
+
+**Code:**
+
+**Answer:**
+
+
+
+## **Question: Write down the specifications used in row 2 of columns 1,2 and 3 of table 1. **
+
+**Answer:**
+
+
+
+## **Question: Replicate all of the results reported in row 2 of Table 1. Explain the difference between these specifications and interpret their coefficients.**
+Hint: the variables listed in the table above after newtreat are the controls you will want to include.
+
+**Code:**
+
+**Answer:**
+
+
+
+## **Question: What is the point of including all of these specifications?**
+
+**Answer:**
+
+
+## **Question: Using the coefficients estimated above, write out the function you would use to predict the probability a household supports the current government based on their predicted income score: **
+
+**a) If they are eligible for the transfer using the results from column 1.**
+
+**b) If they are not eligible for the transfer using the results from column 1.**
+
+**c) If they are eligible for the transfer using the results from column 2.**
+
+**d) If they are not eligible for the transfer using the results from column 2.**
+
+**e) If they are eligible for the transfer using the results from column 3.**
+
+**f) If they are not eligible for the transfer using the results from column 3.**
+
+**Answer:**
+
+
+
+## **Question: How narrow is the "bandwidth" used by the authors. Why does this matter? Check that the results are robust to a narrower bandwidth. **
+
+**Code:**
+
+**Answer:**
+
+
+## **Question: The authors attribute these effects to the causal effect of receiving the government transfers. What is the implied assumption behind this interpretation?**
+
+**Answer:**
+
+
+
+## **Question: What evidence do they provide to support this assumption?**
+
+**Answer:**
+ 
+
+## **Question: Was this threshold eligibility score specifically designed for this particular program? Why does this matter?**
+
+**Answer:**
+
+
+
+
+
+
+
+
+
+
+# Submission instructions:
+
+1) Make sure the final version of your assignment is uploaded on GitHub in both html and Rmarkdown format. 
+
+
+
+
