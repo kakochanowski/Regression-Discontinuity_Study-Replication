@@ -33,8 +33,6 @@ This exercise uses data from Manacorda, Miguel, & Vigorito's paper, "Government 
 
 The data can be found on Edward Miguel's faculty website. Download and extract the contents from the `Government_Transfers_replication.zip` file. 
 
-
-
 # Set up and constructing the data
 
 The original data used in the paper is confidential. The authors instead provide the `reg_panes.dta` data file which is anonymized and created from the original data. 
@@ -50,6 +48,9 @@ library(dplyr)
 library(stargazer)
 library(lfe)
 library(tidyverse)
+#install.packages("statar")
+library(statar)
+library(ggplot2)
 ```
 
 
@@ -58,7 +59,7 @@ library(tidyverse)
 | Name            |Description                                        |
 |-----------------|---------------------------------------------------|
 |aprobado         |Ever received PANES 2005-2007                      |
-|untracked07      | Untracked in 2007                                 |
+|untracked07      |Untracked in 2007                                 |
 |h_89             |Supports current government 2007 [1 to 3]|         |
 |hv34             |Supports current government 2008 [1 to 3]|         | 
 |ind_reest        |Predicted Income                                   | 
@@ -86,8 +87,9 @@ Drop all other variables. If needed, give the variables you are keeping more int
 **Code:**
 ```{r}
 reg_panes_orig <- read_dta("/Users/Kiersten/Documents/School/S2_Causal_Inf/PS6_Kochanowski/Data/reg_panes.dta")
+View(reg_panes_orig)
 reg_panes <- select(reg_panes_orig, aprobado, untracked07, h_89, hv34, ind_reest, newtreat, geo, bl_medad, lnbl_ytoth_pc, bl_hhsize, bl_meduc, missbl_medad, misslnbl_ytoth_pc,missbl_hhsize, missbl_meduc, sexo, edad, aniosed07, misssexo, missedad, missaniosed)
-View(reg_panes)
+#View(reg_panes)
 ```
 
 
@@ -98,7 +100,8 @@ View(reg_panes)
 **Code:**
 ```{r}
 reg_panes$treat<-0
-reg_panes$treat[reg_panes$aprobado==1]<- 1
+reg_panes$treat[reg_panes$ind_reest>=0]<- 0
+reg_panes$treat[reg_panes$ind_reest<0]<- 1
 reg_panes$treat[reg_panes$untracked07==1]<-NA
 ```
 
@@ -109,23 +112,23 @@ Note: This is how the authors modify this variable in their code. It seems count
 
 **Code:**
 ```{r}
+#2007
+reg_panes$sup07<-NA
+reg_panes$sup07[reg_panes$h_89==1]<-0
+reg_panes$sup07[reg_panes$h_89==2]<-0.5
+reg_panes$sup07[reg_panes$h_89==3]<-1
+reg_panes$sup07[reg_panes$h_89==9]<-NA
 table(reg_panes$h_89)
-table(reg_panes$hv34)
+table(reg_panes$sup07)
 
 #2007
-reg_panes$sup07<-0
-reg_panes$sup07[reg_panes$h_89==9] <- NA
-reg_panes$sup07[reg_panes$h_89==2] <- 0
-reg_panes$sup07[reg_panes$h_89==1] <- 0.5
-reg_panes$sup07[reg_panes$h_89==3] <- 1
-
-#2008
-reg_panes$sup08<-0
-reg_panes$sup08[reg_panes$hv34==9] <- NA
-reg_panes$sup08[reg_panes$hv34==2] <- 0
-reg_panes$sup08[reg_panes$hv34==1] <- 0.5
-reg_panes$sup08[reg_panes$hv34==3] <- 1
-
+reg_panes$sup08<-NA
+reg_panes$sup08[reg_panes$hv34==1]<-0
+reg_panes$sup08[reg_panes$hv34==2]<-0.5
+reg_panes$sup08[reg_panes$hv34==3]<-1
+reg_panes$sup08[reg_panes$hv34==9]<-NA
+table(reg_panes$hv34)
+table(reg_panes$sup08)
 ```
 
 
@@ -143,13 +146,16 @@ reg_panes$ind_reest_sqd <- reg_panes$ind_reest^2
 
 ## **Question 6: The data consists of over 3000 observations. How many points are plotted on these figures? How should we interpret the y axis? What does each point below the threshold represent? What does each point above the threshold represent?**
 
-**Answer:**
-
-
+- 1,935 points (households) are plotted on these figures - there are 43 households represented as the mean within each cell (bin). 
+- The y-axis represents the treatment status
+- The points below the threshold represent the mean treatment (1) for each income score percentile below the threshold. 
+- The points above the threshold represent the mean treatment (0) for each income score percentile below the threshold.
+- Overall the figure shows that the implementation of treatment was honest and "clean" where all households that qualified for treatment received treatment (given the percentile averages are consistently 1) and the households that did not qualify (above the threshold) did not receive treatment (given the percentile averages are consistently around 0)
 
 ## **Question 7: Why is the number of points above the threshold different from the number below? **
 
 **Answer:**
+The study wanted to gather more information on treatment recipient households so they split the sample between eligible and ineligible 2:1. This was likely for budget concern reasons - wanting to spend more resources on insight from the treatment group than collecting information from more households in the ineligible group.
 
 
 ## **Question 8: Replicating these figures will require restructuring our data and calculating the values that are plotted. Generate a variable that will indicate the percentile group the observation is in. Note the difference in the number of percentile groups above and below the threshold. **
@@ -158,24 +164,130 @@ Note: you may find the `xtile` function in R useful.
 
 **Code:**
 
+```{r}
+#Disqualifying households with invalid responses to government support question
+nrow(reg_panes)
+reg_panes$incscore <- reg_panes$ind_reest
+reg_panes$incscore[is.na(reg_panes$sup07)]<-NA
+reg_panes$incscore[is.na(reg_panes$sup08)]<-NA
+reg_panes$incscore[is.na(reg_panes$treat)]<-NA
+#View(reg_panes)
+
+#Incscore already standardized around 0 (first negative score is below threshold (i.e. treated))
+```
+
+```{r}
+# Run for loop to make cuts below threshold
+y <- -0.01999099
+
+sample_below <- c()
+
+for(i in 1:30) {
+  y <- sum(y+0.00064307)
+  sample_below <- c(sample_below, y)
+}
+
+# Run for loop to make cuts above threshold
+x <- 0.01989200
+
+sample_above <- c()
+
+for(i in 1:15) {
+  x <- sum(x-0.0012368)
+  sample_above <- c(sample_above, x)
+}
+
+#Create cuts vector
+cuts <- c(sample_below, sample_above)
+print(cuts)
+midpoints <- cuts[2:45]
+
+#Create bins
+reg_panes$percentiles <- cut(reg_panes$incscore, breaks = cuts, include.lowest = TRUE, right=FALSE, labels=midpoints)
+
+```
+
+
 ## **Question 9: For each of the percentile groups, calculate the mean of each of the variables we will use for plotting: predicted income, receipt of PANES, support for the government in 2007, and support for the government in 2008.**
 
 **Code:**
+```{r}
+#Var to represent whether observation is included in final analysis
+reg_panes$exclude <- 0
+reg_panes$exclude[is.na(reg_panes$percentiles)]<-1
+#New data frame with only observations that qualify (valid responses to government support question)
+reg_panes2 <- filter(reg_panes, exclude == "0")
+#View(reg_panes2)
+```
+
+
+```{r}
+#Calculating means
+reg_panes_sharp <- reg_panes2 %>%
+  group_by(percentiles) %>%
+  summarize(scoremean = mean(incscore, na.rm=TRUE), treatmean = mean(aprobado, na.rm=TRUE), sup07mean = mean(sup07, na.rm=TRUE), sup08mean = mean(sup08, na.rm=TRUE))
+#View(reg_panes_sharp)
+```
+
 
 ## **Question 10: Replicate figure 2. Make the figure as clear and informative as possible. You may want to create an indicator variable for percentiles above and below the threshold. ** 
 
 **Code:**
+```{r}
+reg_panes_sharp$percentiles <- as.numeric(as.character(reg_panes_sharp$percentiles))
+
+plot1 <- ggplot(reg_panes_sharp, aes(x=percentiles, y=treatmean)) +               geom_point() + 
+        geom_vline(aes(xintercept = 0)) + labs(x = "Predicted Income", y = "Treatment",
+ title ="PANES Program Eligibility & Participation",
+ caption = "Notes: The figure reports the proportion of households ever enrolled in PANES as a function of the standardized score (based on administrative data). The fitted plots are linear best fits on each side of the eligibility threshold")
+
+plot1
+
+```
 
 
 ## **Question 11: What is the purpose of this figure and what should we take away from it? **
 
 **Answer:**
+Overall the figure shows that the implementation of treatment was honest and "clean" where all households that qualified for treatment received treatment (given the percentile averages are consistently 1) and the households that did not qualify (above the threshold) did not receive treatment (given the percentile averages are consistently around 0)
 
 
-
-## **Question 12: Replicate figures 3 and 4. Make these figures as clear and informative as possible.  **
+## **Question 12: Replicate figures 3 and 4. Make these figures as clear and informative as possible.**
 
 **Code:**
+```{r}
+#Line of best fit regressions
+plot2 <- ggplot(reg_panes_sharp, aes(x=percentiles, y=sup07mean)) +               geom_point() + 
+        geom_vline(aes(xintercept = 0)) + labs(x = "Predicted Income", y = "Government Support",
+ title ="PANES Program Eligibility & Political Support for Gov't (2007)")
+
+plot2
+
+```
+LOB code
+reg_panes$runminc<-sharp$read3-0
+shpestim<-felm(read4~treated+runminc+treated*runminc, sharp)
++ geom_segment(aes(x = -0.02, xend = 0, y = shpestim$coefficients[1], yend = shpestim$coefficients[1]+3*shpestim$coefficients[3]))+
+         geom_segment(aes(x = -3, xend = 0, y = shpestim$coefficients[1]+ shpestim$coefficients[2]+(-3*( shpestim$coefficients[3]+
+plot6shp<-ggplot(sharp_mean, aes(x=runminc, y=outbinmean))+ 
+         geom_point()+
+         geom_vline(xintercept = 0)+
+         geom_segment(aes(x = 0, xend = 3, y = shpestim$coefficients[1], yend = shpestim$coefficients[1]+3*shpestim$coefficients[3]))+
+         geom_segment(aes(x = -3, xend = 0, y = shpestim$coefficients[1]+ shpestim$coefficients[2]+(-3*( shpestim$coefficients[3]+ shpestim$coefficients[4])), yend = shpestim$coefficients[1]+ shpestim$coefficients[2]))+
+  #adding some labeling for course notes:
+  annotate("text", x = 0.75, y = 64.8, label = "Intercept~is~alpha~+~tau" ,parse = TRUE)+
+  annotate("text", x = -0.6, y = 54, label = "Intercept~is~alpha" ,parse = TRUE)+
+  annotate("text", x = -2, y = 64, label = "Slope~is~beta~+~gamma" ,parse = TRUE)+
+  annotate("text", x = 2, y = 54, label = "Slope~is~beta" ,parse = TRUE) 
+
+```{r}
+plot3 <- ggplot(reg_panes_sharp, aes(x=percentiles, y=sup08mean)) +               geom_point() + 
+        geom_vline(xintercept = 0) + labs(x = "Predicted Income", y = "Government Support",
+ title ="PANES Program Eligibility & Political Support for Gov't (2008)")
+
+plot3
+
+```
 
 
 ## **Question 13: Interpret these figures. What should we take away from them? **
@@ -186,14 +298,48 @@ Note: you may find the `xtile` function in R useful.
 ## **Question 14: Replicate the results of the three regressions estimated in the first column of table 1. Present your results in a table. Interpret the coefficients.**
 
 **Code:**
+```{r}
+#reg_panes2 <- as.data.frame(reg_panes2)
+#reg_panes2$incscore_sqrd <- reg_panes2$incscore^2
+reg_panes <- as.data.frame(reg_panes)
+reg_panes$incscore_sqrd <- reg_panes$incscore^2
+View(reg_panes)
+
+#No polynomial
+r1 <- felm(data=reg_panes, aprobado ~ treat|0|0|ind_reest)
+#Create clustered se for stargazer
+cluster_se1 <- as.vector(summary(r1,cluster = c("ind_reest"))$coefficients[,"Cluster s.e."])
+
+#First order polynomial
+r2 <- felm(data=reg_panes, aprobado ~ treat + ind_reest|0|0|ind_reest)
+#Create clustered se for stargazer
+cluster_se2 <- as.vector(summary(r2,cluster = c("ind_reest"))$coefficients[,"Cluster s.e."])
+
+#Quadratic polynomial
+r3 <- felm(data=reg_panes, aprobado ~ treat + ind_reest_sqd|0|0|ind_reest)
+#Create clustered se for stargazer
+cluster_se3 <- as.vector(summary(r3,cluster = c("ind_reest"))$coefficients[,"Cluster s.e."])
+
+stargazer(r1, r2, r3, type="text", header=FALSE, title="PANES Eligibility, Participation & Political Support for Government", 
+                     style="qje", 
+                     se = list(r1$cluster_se1, r2$cluster_se2, r3$cluster_se3),
+                     covariate.labels = c("Eligibility", "Income Score", "Income Score Sqrd"),
+                     dep.var.labels.include = TRUE,
+                     omit = "Constant",
+                     add.lines = list(c("Score controls", "None", "Linear", "Quadratic")))
+
+```
+
 
 **Answer:**
+This shows that the relationship can be described with a linear regression given all coefficients are significant and robust (don't change much based on the polynomial)
 
 
 
 ## **Question 15: Write down the specifications used in row 2 of columns 1,2 and 3 of table 1. **
 
 **Answer:**
+The dependent variable is political support for the government in the first follow-up survey in 2007. These regressions only use observations with valid responses. Similar to the first row, these regressions use different parameterizations of the running variable (income score): no polynomial, first order polynomial (linear), and quadratic polynomial.
 
 
 
@@ -201,14 +347,43 @@ Note: you may find the `xtile` function in R useful.
 Hint: the variables listed in the table above after newtreat are the controls you will want to include.
 
 **Code:**
+```{r}
+#View(reg_panes2)
+
+#No polynomial
+r4 <- felm(data=reg_panes, sup07 ~ treat|0|0|ind_reest)
+#Create clustered se for stargazer
+cluster_se4 <- as.vector(summary(r4,cluster = c("ind_reest"))$coefficients[,"Cluster s.e."])
+
+#First order polynomial
+r5 <- felm(data=reg_panes, sup07 ~ treat + ind_reest|0|0|ind_reest)
+#Create clustered se for stargazer
+cluster_se5 <- as.vector(summary(r5,cluster = c("ind_reest"))$coefficients[,"Cluster s.e."])
+
+#Quadratic polynomial
+r6 <- felm(data=reg_panes, sup07 ~ treat + ind_reest_sqd|0|0|ind_reest)
+#Create clustered se for stargazer
+cluster_se6 <- as.vector(summary(r6,cluster = c("ind_reest"))$coefficients[,"Cluster s.e."])
+
+stargazer(r4, r5, r6, type="text", header=FALSE, title="PANES Eligibility, Participation & Political Support for Government", 
+                     style="qje", 
+                     se = list(r4$cluster_se4, r5$cluster_se5, r6$cluster_se6),
+                     covariate.labels = c("Eligibility", "Income Score", "Income Score Sqrd"),
+                     dep.var.labels.include = TRUE,
+                     omit = "Constant",
+                     add.lines = list(c("Score controls", "None", "Linear", "Quadratic")))
+```
+
 
 **Answer:**
+Coefficients not right
 
 
 
 ## **Question 17: What is the point of including all of these specifications?**
 
 **Answer:**
+These specifications show that linear regressions capture the relationship fine and we aren't representing a gap between the treatment and non-treatment groups that aren't there in reality.
 
 
 ## **Question 18: Using the coefficients estimated above, write out the function you would use to predict the probability a household supports the current government based on their predicted income score: **
@@ -232,6 +407,10 @@ Hint: the variables listed in the table above after newtreat are the controls yo
 ## **Question 19: How narrow is the "bandwidth" used by the authors. Why does this matter? Check that the results are robust to a narrower bandwidth. **
 
 **Code:**
+```{r}
+
+```
+
 
 **Answer:**
 
