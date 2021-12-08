@@ -752,46 +752,32 @@ Residual Std. Error
 <p>Hint: the variables listed in the table above after newtreat are the controls you will want to include.</p>
 <p><strong>Code:</strong></p>
 <pre class="r"><code>#Changing class when necessary
-class(reg_panes$geo)</code></pre>
-<pre><code>## [1] &quot;numeric&quot;</code></pre>
-<pre class="r"><code>reg_panes$geo &lt;- as.character(reg_panes$geo)
+class(reg_panes$geo)
+reg_panes$geo &lt;- as.character(reg_panes$geo)
 
-class(reg_panes$lnbl_ytoth_pc)</code></pre>
-<pre><code>## [1] &quot;numeric&quot;</code></pre>
-<pre class="r"><code>class(reg_panes$bl_meduc)</code></pre>
-<pre><code>## [1] &quot;numeric&quot;</code></pre>
-<pre class="r"><code>class(reg_panes$bl_medad)</code></pre>
-<pre><code>## [1] &quot;numeric&quot;</code></pre>
-<pre class="r"><code>class(reg_panes$bl_hhsize)</code></pre>
-<pre><code>## [1] &quot;numeric&quot;</code></pre>
-<pre class="r"><code>class(reg_panes$sexo)</code></pre>
-<pre><code>## [1] &quot;haven_labelled&quot; &quot;vctrs_vctr&quot;     &quot;double&quot;</code></pre>
-<pre class="r"><code>reg_panes$sexo &lt;- as.character(reg_panes$sexo)
-class(reg_panes$sexo)</code></pre>
-<pre><code>## [1] &quot;character&quot;</code></pre>
-<pre class="r"><code>class(reg_panes$edad)</code></pre>
-<pre><code>## [1] &quot;numeric&quot;</code></pre>
-<pre class="r"><code>class(reg_panes$aniosed07)</code></pre>
-<pre><code>## [1] &quot;numeric&quot;</code></pre>
-<pre class="r"><code>class(reg_panes$misslnbl_ytoth_pc)</code></pre>
-<pre><code>## [1] &quot;numeric&quot;</code></pre>
-<pre class="r"><code>class(reg_panes$missbl_meduc)</code></pre>
-<pre><code>## [1] &quot;numeric&quot;</code></pre>
-<pre class="r"><code>class(reg_panes$missbl_medad)</code></pre>
-<pre><code>## [1] &quot;numeric&quot;</code></pre>
-<pre class="r"><code>class(reg_panes$missbl_hhsize)</code></pre>
-<pre><code>## [1] &quot;numeric&quot;</code></pre>
-<pre class="r"><code>class(reg_panes$missedad)</code></pre>
-<pre><code>## [1] &quot;numeric&quot;</code></pre>
-<pre class="r"><code>class(reg_panes$misssexo)</code></pre>
-<pre><code>## [1] &quot;numeric&quot;</code></pre>
-<pre class="r"><code>class(reg_panes$missaniosed)</code></pre>
-<pre><code>## [1] &quot;numeric&quot;</code></pre>
-<pre class="r"><code>reg_panes$missaniosed &lt;- as.character(reg_panes$missaniosed)
-class(reg_panes$missaniosed)</code></pre>
-<pre><code>## [1] &quot;character&quot;</code></pre>
-<pre class="r"><code>class(reg_panes$geo)</code></pre>
-<pre><code>## [1] &quot;character&quot;</code></pre>
+class(reg_panes$lnbl_ytoth_pc)
+class(reg_panes$bl_meduc)
+class(reg_panes$bl_medad)
+class(reg_panes$bl_hhsize)
+
+class(reg_panes$sexo)
+reg_panes$sexo &lt;- as.character(reg_panes$sexo)
+class(reg_panes$sexo)
+
+class(reg_panes$edad)
+class(reg_panes$aniosed07)
+class(reg_panes$misslnbl_ytoth_pc)
+class(reg_panes$missbl_meduc)
+class(reg_panes$missbl_medad)
+class(reg_panes$missbl_hhsize)
+class(reg_panes$missedad)
+class(reg_panes$misssexo)
+
+class(reg_panes$missaniosed)
+reg_panes$missaniosed &lt;- as.character(reg_panes$missaniosed)
+class(reg_panes$missaniosed)
+
+class(reg_panes$geo)</code></pre>
 <pre class="r"><code>#View(reg_panes2)
 
 #No polynomial

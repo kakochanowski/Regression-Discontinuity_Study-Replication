@@ -365,7 +365,7 @@ The dependent variable is political support for the government in the first foll
 Hint: the variables listed in the table above after newtreat are the controls you will want to include.
 
 **Code:**
-```{r, Q16a}
+```{r, Q16a, results='hide'}
 #Changing class when necessary
 class(reg_panes$geo)
 reg_panes$geo <- as.character(reg_panes$geo)
