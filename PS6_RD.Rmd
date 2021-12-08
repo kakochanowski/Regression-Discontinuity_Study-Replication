@@ -42,7 +42,7 @@ The original data used in the paper is confidential. The authors instead provide
 Load any R packages you will be using:
 **Code:**
 
-```{r}
+```{r, Q1}
 library(haven)
 library(dplyr)
 library(stargazer)
@@ -85,7 +85,7 @@ Drop all other variables. If needed, give the variables you are keeping more int
 
 
 **Code:**
-```{r}
+```{r, Q2}
 reg_panes_orig <- read_dta("/Users/Kiersten/Documents/School/S2_Causal_Inf/PS6_Kochanowski/Data/reg_panes.dta")
 View(reg_panes_orig)
 reg_panes <- select(reg_panes_orig, aprobado, untracked07, h_89, hv34, ind_reest, newtreat, geo, bl_medad, lnbl_ytoth_pc, bl_hhsize, bl_meduc, missbl_medad, misslnbl_ytoth_pc,missbl_hhsize, missbl_meduc, sexo, edad, aniosed07, misssexo, missedad, missaniosed)
@@ -98,11 +98,15 @@ reg_panes <- select(reg_panes_orig, aprobado, untracked07, h_89, hv34, ind_reest
 -An indicator for receiving PANES that is NA if a respondent is untracked in 2007
 
 **Code:**
-```{r}
-reg_panes$treat<-0
-reg_panes$treat[reg_panes$ind_reest>=0]<- 0
-reg_panes$treat[reg_panes$ind_reest<0]<- 1
+```{r, Q3}
+reg_panes$treat<-reg_panes$aprobado
 reg_panes$treat[reg_panes$untracked07==1]<-NA
+
+#Variable for PANES eligibility
+reg_panes$eligible<-0
+reg_panes$eligible[reg_panes$ind_reest>=0]<- 0
+reg_panes$eligible[reg_panes$ind_reest<0]<- 1
+reg_panes$eligible[reg_panes$untracked07==1]<-NA
 ```
 
 
@@ -111,24 +115,26 @@ reg_panes$treat[reg_panes$untracked07==1]<-NA
 Note: This is how the authors modify this variable in their code. It seems counter intuitive and does not correspond to the description of how this variable is coded in the survey questionnaire as reported in their appendix though it does correspond to their discussion in footnote 12. My guess is the transcription/translation of the survey question is incorrect.
 
 **Code:**
-```{r}
+```{r, Q4}
 #2007
 reg_panes$sup07<-NA
-reg_panes$sup07[reg_panes$h_89==1]<-0
-reg_panes$sup07[reg_panes$h_89==2]<-0.5
+reg_panes$sup07[reg_panes$h_89==1]<-0.5
+reg_panes$sup07[reg_panes$h_89==2]<-0
 reg_panes$sup07[reg_panes$h_89==3]<-1
 reg_panes$sup07[reg_panes$h_89==9]<-NA
 table(reg_panes$h_89)
 table(reg_panes$sup07)
+reg_panes$sup07 <- as.numeric(reg_panes$sup07)
 
-#2007
+#2008
 reg_panes$sup08<-NA
-reg_panes$sup08[reg_panes$hv34==1]<-0
-reg_panes$sup08[reg_panes$hv34==2]<-0.5
+reg_panes$sup08[reg_panes$hv34==1]<-0.5
+reg_panes$sup08[reg_panes$hv34==2]<-0
 reg_panes$sup08[reg_panes$hv34==3]<-1
 reg_panes$sup08[reg_panes$hv34==9]<-NA
 table(reg_panes$hv34)
 table(reg_panes$sup08)
+reg_panes$sup08 <- as.numeric(reg_panes$sup08)
 ```
 
 
@@ -136,7 +142,7 @@ table(reg_panes$sup08)
 ## **Question 5: Generate a variable that is the square of predicted income.**
 
 **Code:**
-```{r}
+```{r, Q5}
 reg_panes$ind_reest_sqd <- reg_panes$ind_reest^2
 ```
 
@@ -164,7 +170,7 @@ Note: you may find the `xtile` function in R useful.
 
 **Code:**
 
-```{r}
+```{r, Q8}
 #Disqualifying households with invalid responses to government support question
 nrow(reg_panes)
 reg_panes$incscore <- reg_panes$ind_reest
@@ -176,7 +182,7 @@ reg_panes$incscore[is.na(reg_panes$treat)]<-NA
 #Incscore already standardized around 0 (first negative score is below threshold (i.e. treated))
 ```
 
-```{r}
+```{r, Q8B}
 # Run for loop to make cuts below threshold
 y <- -0.01999099
 
@@ -196,14 +202,19 @@ for(i in 1:15) {
   x <- sum(x-0.0012368)
   sample_above <- c(sample_above, x)
 }
+print(sample_below)
 
 #Create cuts vector
 cuts <- c(sample_below, sample_above)
 print(cuts)
-midpoints <- cuts[2:45]
+midpoints_below <- cuts[2:30]-0.00032154
+midpoints_above <- cuts[31:45]-0.0006184
+midpoints <- c(midpoints_below, midpoints_above)
+
 
 #Create bins
-reg_panes$percentiles <- cut(reg_panes$incscore, breaks = cuts, include.lowest = TRUE, right=FALSE, labels=midpoints)
+reg_panes$percentiles <- cut(reg_panes$incscore, breaks=cuts, include.lowest = TRUE, right=FALSE, labels=midpoints)
+View(reg_panes)
 
 ```
 
@@ -211,21 +222,12 @@ reg_panes$percentiles <- cut(reg_panes$incscore, breaks = cuts, include.lowest =
 ## **Question 9: For each of the percentile groups, calculate the mean of each of the variables we will use for plotting: predicted income, receipt of PANES, support for the government in 2007, and support for the government in 2008.**
 
 **Code:**
-```{r}
-#Var to represent whether observation is included in final analysis
-reg_panes$exclude <- 0
-reg_panes$exclude[is.na(reg_panes$percentiles)]<-1
-#New data frame with only observations that qualify (valid responses to government support question)
-reg_panes2 <- filter(reg_panes, exclude == "0")
-#View(reg_panes2)
-```
 
-
-```{r}
+```{r, Q9}
 #Calculating means
-reg_panes_sharp <- reg_panes2 %>%
+reg_panes_sharp <- reg_panes %>%
   group_by(percentiles) %>%
-  summarize(scoremean = mean(incscore, na.rm=TRUE), treatmean = mean(aprobado, na.rm=TRUE), sup07mean = mean(sup07, na.rm=TRUE), sup08mean = mean(sup08, na.rm=TRUE))
+  summarize(scoremean = mean(ind_reest, na.rm=TRUE), treatmean = mean(aprobado, na.rm=TRUE), sup07mean = mean(sup07, na.rm=TRUE), sup08mean = mean(sup08, na.rm=TRUE), numb=n())
 #View(reg_panes_sharp)
 ```
 
@@ -233,13 +235,13 @@ reg_panes_sharp <- reg_panes2 %>%
 ## **Question 10: Replicate figure 2. Make the figure as clear and informative as possible. You may want to create an indicator variable for percentiles above and below the threshold. ** 
 
 **Code:**
-```{r}
+```{r, Q10, results='asis'}
 reg_panes_sharp$percentiles <- as.numeric(as.character(reg_panes_sharp$percentiles))
 
 plot1 <- ggplot(reg_panes_sharp, aes(x=percentiles, y=treatmean)) +               geom_point() + 
         geom_vline(aes(xintercept = 0)) + labs(x = "Predicted Income", y = "Treatment",
  title ="PANES Program Eligibility & Participation",
- caption = "Notes: The figure reports the proportion of households ever enrolled in PANES as a function of the standardized score (based on administrative data). The fitted plots are linear best fits on each side of the eligibility threshold")
+ caption = "Notes: Reports proportion of HH enrolled in PANES as fxn of standardized score")
 
 plot1
 
@@ -249,41 +251,43 @@ plot1
 ## **Question 11: What is the purpose of this figure and what should we take away from it? **
 
 **Answer:**
-Overall the figure shows that the implementation of treatment was honest and "clean" where all households that qualified for treatment received treatment (given the percentile averages are consistently 1) and the households that did not qualify (above the threshold) did not receive treatment (given the percentile averages are consistently around 0)
+Overall the figure shows that the implementation of treatment was honest and sharp, where virtually all households that qualified for treatment received treatment (given the percentile averages are consistently 1) and the households that did not qualify (above the threshold) did not receive treatment (given the percentile averages are consistently around 0)
 
 
 ## **Question 12: Replicate figures 3 and 4. Make these figures as clear and informative as possible.**
 
 **Code:**
-```{r}
-#Line of best fit regressions
-plot2 <- ggplot(reg_panes_sharp, aes(x=percentiles, y=sup07mean)) +               geom_point() + 
-        geom_vline(aes(xintercept = 0)) + labs(x = "Predicted Income", y = "Government Support",
- title ="PANES Program Eligibility & Political Support for Gov't (2007)")
+```{r, Q12, results='asis'}
+#Line of best fit
+sharpestim <- felm(data=reg_panes, sup07 ~ eligible + ind_reest + eligible*ind_reest|0|0|ind_reest)
+
+#Plot
+plot2 <- ggplot(reg_panes_sharp, aes(x=percentiles, y=sup07mean)) +               
+        geom_point() + 
+        geom_vline(aes(xintercept = 0)) + 
+        geom_segment(aes(x=0, xend=0.02, y=sharpestim$coefficients[1], yend=sharpestim$coefficients[1] +0.02*sharpestim$coefficients[3])) +
+        geom_segment(aes(x=-0.02, xend=0, y=sharpestim$coefficients[1] + sharpestim$coefficients[2] +(-0.02*(sharpestim$coefficients[3]+sharpestim$coefficients[4])), yend = sharpestim$coefficients[1]+sharpestim$coefficients[2]))+
+        labs(x = "Predicted Income", y = "Government Support",
+        title ="PANES Program Eligibility & Political Support for Gov't (2007)")
 
 plot2
 
 ```
-LOB code
-reg_panes$runminc<-sharp$read3-0
-shpestim<-felm(read4~treated+runminc+treated*runminc, sharp)
-+ geom_segment(aes(x = -0.02, xend = 0, y = shpestim$coefficients[1], yend = shpestim$coefficients[1]+3*shpestim$coefficients[3]))+
-         geom_segment(aes(x = -3, xend = 0, y = shpestim$coefficients[1]+ shpestim$coefficients[2]+(-3*( shpestim$coefficients[3]+
-plot6shp<-ggplot(sharp_mean, aes(x=runminc, y=outbinmean))+ 
-         geom_point()+
-         geom_vline(xintercept = 0)+
-         geom_segment(aes(x = 0, xend = 3, y = shpestim$coefficients[1], yend = shpestim$coefficients[1]+3*shpestim$coefficients[3]))+
-         geom_segment(aes(x = -3, xend = 0, y = shpestim$coefficients[1]+ shpestim$coefficients[2]+(-3*( shpestim$coefficients[3]+ shpestim$coefficients[4])), yend = shpestim$coefficients[1]+ shpestim$coefficients[2]))+
-  #adding some labeling for course notes:
-  annotate("text", x = 0.75, y = 64.8, label = "Intercept~is~alpha~+~tau" ,parse = TRUE)+
-  annotate("text", x = -0.6, y = 54, label = "Intercept~is~alpha" ,parse = TRUE)+
-  annotate("text", x = -2, y = 64, label = "Slope~is~beta~+~gamma" ,parse = TRUE)+
-  annotate("text", x = 2, y = 54, label = "Slope~is~beta" ,parse = TRUE) 
 
-```{r}
-plot3 <- ggplot(reg_panes_sharp, aes(x=percentiles, y=sup08mean)) +               geom_point() + 
-        geom_vline(xintercept = 0) + labs(x = "Predicted Income", y = "Government Support",
- title ="PANES Program Eligibility & Political Support for Gov't (2008)")
+
+   
+
+```{r, Q12b, results='asis'}
+#Line of best fit
+sharpestim2 <- felm(data=reg_panes, sup08 ~ eligible + ind_reest + eligible*ind_reest|0|0|ind_reest)
+
+plot3 <- ggplot(reg_panes_sharp, aes(x=percentiles, y=sup08mean)) +               
+        geom_point() + 
+        geom_vline(xintercept = 0) + 
+        geom_segment(aes(x=0, xend=0.02, y=sharpestim2$coefficients[1], yend=sharpestim2$coefficients[1] +0.02*sharpestim2$coefficients[3])) +
+        geom_segment(aes(x=-0.02, xend=0, y=sharpestim2$coefficients[1] + sharpestim2$coefficients[2] +(-0.02*(sharpestim2$coefficients[3]+sharpestim2$coefficients[4])), yend = sharpestim2$coefficients[1]+sharpestim2$coefficients[2]))+
+        labs(x = "Predicted Income", y = "Government Support",
+        title ="PANES Program Eligibility & Political Support for Gov't (2008)")
 
 plot3
 
@@ -293,146 +297,296 @@ plot3
 ## **Question 13: Interpret these figures. What should we take away from them? **
 
 **Answer:** 
+We can see a significant discontinuity in government support between households that received PANES and those that didn't. We can take away that the difference (gap) along the threshold (0) represents the existence of a treatment effect (although we can't quantify it using these graphs). In both 2007 (during the administration), households that received PANES were significantly more supportive of the current government than households just above the threshold (with normalized income score <= 0.02). The same relationship held after the PANES program ended in 2008 (second figure).
 
 
 ## **Question 14: Replicate the results of the three regressions estimated in the first column of table 1. Present your results in a table. Interpret the coefficients.**
 
 **Code:**
-```{r}
+```{r, Q14, results='asis'}
 #reg_panes2 <- as.data.frame(reg_panes2)
 #reg_panes2$incscore_sqrd <- reg_panes2$incscore^2
 reg_panes <- as.data.frame(reg_panes)
-reg_panes$incscore_sqrd <- reg_panes$incscore^2
-View(reg_panes)
+reg_panes$ind_reest_sqd <- (reg_panes$ind_reest)^2
+#View(reg_panes)
 
-#No polynomial
-r1 <- felm(data=reg_panes, aprobado ~ treat|0|0|ind_reest)
+#Row 1 (Ever received PANES)
+r1 <- felm(data=reg_panes, aprobado ~ eligible|0|0|ind_reest)
 #Create clustered se for stargazer
 cluster_se1 <- as.vector(summary(r1,cluster = c("ind_reest"))$coefficients[,"Cluster s.e."])
 
-#First order polynomial
-r2 <- felm(data=reg_panes, aprobado ~ treat + ind_reest|0|0|ind_reest)
+#Row 2 (government support '07)
+r2 <- felm(data=reg_panes, sup07 ~ eligible |0|0|ind_reest)
 #Create clustered se for stargazer
 cluster_se2 <- as.vector(summary(r2,cluster = c("ind_reest"))$coefficients[,"Cluster s.e."])
 
-#Quadratic polynomial
-r3 <- felm(data=reg_panes, aprobado ~ treat + ind_reest_sqd|0|0|ind_reest)
+#Row 3 (government support '07)
+r3 <- felm(data=reg_panes, sup08 ~ eligible|0|0|ind_reest)
 #Create clustered se for stargazer
 cluster_se3 <- as.vector(summary(r3,cluster = c("ind_reest"))$coefficients[,"Cluster s.e."])
 
-stargazer(r1, r2, r3, type="text", header=FALSE, title="PANES Eligibility, Participation & Political Support for Government", 
+
+stargazer(r1, r2, r3, type="html", header=FALSE, title="PANES Eligibility, Participation & Political Support for Government", 
                      style="qje", 
                      se = list(r1$cluster_se1, r2$cluster_se2, r3$cluster_se3),
-                     covariate.labels = c("Eligibility", "Income Score", "Income Score Sqrd"),
+                     covariate.labels = c("Eligible"),
                      dep.var.labels.include = TRUE,
-                     omit = "Constant",
-                     add.lines = list(c("Score controls", "None", "Linear", "Quadratic")))
+                     omit = c("Constant"),
+                     add.lines = list(c("Score controls", "None", "None", "None")))
 
 ```
 
 
 **Answer:**
-This shows that the relationship can be described with a linear regression given all coefficients are significant and robust (don't change much based on the polynomial)
+R1: aprobado ~ eligible: estimates the effect of PANES eligibility on program receipt. This means 99.3% of households eligible for PANES received the support (relatively sharp RD)
+R2: sup07 ~ eligible: estimates the effect of PANES eligibility on government support in 2007. At the margin, households that are eligible for PANES result in ~13% increase in support for the FA administration
+R3: sup08 ~ eligible: estimates the effect of PANES eligibility on government support in 2008. At the margin, households that are eligible for PANES result in ~12% increase in support for the FA administration
 
 
 
 ## **Question 15: Write down the specifications used in row 2 of columns 1,2 and 3 of table 1. **
 
-**Answer:**
-The dependent variable is political support for the government in the first follow-up survey in 2007. These regressions only use observations with valid responses. Similar to the first row, these regressions use different parameterizations of the running variable (income score): no polynomial, first order polynomial (linear), and quadratic polynomial.
 
+$$
+
+\begin{aligned}
+ GovSupp07_i&=\beta_0+\beta_1Eligible_i+\epsilon_i\\
+ GovSupp07_i&=\beta_0+\beta_1Eligible_i+\beta_2(Score-Threshold)+\beta_3(Score-Threshold)*Eligible+\epsilon_i\\
+  GovSupp07_i&=\beta_0+\beta_1Eligible_i+\beta_2(Score-Threshold)+\beta_3(Score-Threshold)^2+\beta_4(Score-Threshold)*Eligible+\beta_5(Score-Threshold)^2*Eligible+\epsilon_i\\
+\end{aligned}
+
+
+$$
+
+The dependent variable is political support for the government in the first follow-up survey in 2007. These regressions only use observations with valid responses from the 2007 survey. Similar to the first row, these regressions use the explanatory variable (eligible), the standardized score (ind_reest) and the interaction term of these two variables (representing the treatment effect). Each regression employs different parameterizations of the standardize running variable (ind_reest): no polynomial, first order polynomial (linear), and quadratic polynomial.
 
 
 ## **Question 16: Replicate all of the results reported in row 2 of Table 1. Explain the difference between these specifications and interpret their coefficients.**
 Hint: the variables listed in the table above after newtreat are the controls you will want to include.
 
 **Code:**
-```{r}
+```{r, Q16a}
+#Changing class when necessary
+class(reg_panes$geo)
+reg_panes$geo <- as.character(reg_panes$geo)
+
+class(reg_panes$lnbl_ytoth_pc)
+class(reg_panes$bl_meduc)
+class(reg_panes$bl_medad)
+class(reg_panes$bl_hhsize)
+
+class(reg_panes$sexo)
+reg_panes$sexo <- as.character(reg_panes$sexo)
+class(reg_panes$sexo)
+
+class(reg_panes$edad)
+class(reg_panes$aniosed07)
+class(reg_panes$misslnbl_ytoth_pc)
+class(reg_panes$missbl_meduc)
+class(reg_panes$missbl_medad)
+class(reg_panes$missbl_hhsize)
+class(reg_panes$missedad)
+class(reg_panes$misssexo)
+
+class(reg_panes$missaniosed)
+reg_panes$missaniosed <- as.character(reg_panes$missaniosed)
+class(reg_panes$missaniosed)
+
+class(reg_panes$geo)
+```
+
+
+```{r, Q16b, results='asis'}
+
 #View(reg_panes2)
 
 #No polynomial
-r4 <- felm(data=reg_panes, sup07 ~ treat|0|0|ind_reest)
+r4 <- felm(data=reg_panes, sup07 ~ eligible|0|0|ind_reest)
 #Create clustered se for stargazer
 cluster_se4 <- as.vector(summary(r4,cluster = c("ind_reest"))$coefficients[,"Cluster s.e."])
 
 #First order polynomial
-r5 <- felm(data=reg_panes, sup07 ~ treat + ind_reest|0|0|ind_reest)
+r5 <- felm(data=reg_panes, sup07 ~ eligible + ind_reest + eligible*ind_reest|0|0|ind_reest)
 #Create clustered se for stargazer
 cluster_se5 <- as.vector(summary(r5,cluster = c("ind_reest"))$coefficients[,"Cluster s.e."])
 
 #Quadratic polynomial
-r6 <- felm(data=reg_panes, sup07 ~ treat + ind_reest_sqd|0|0|ind_reest)
+r6 <- felm(data=reg_panes, sup07 ~ eligible + ind_reest_sqd + eligible*ind_reest + eligible*ind_reest_sqd|0|0|ind_reest)
 #Create clustered se for stargazer
 cluster_se6 <- as.vector(summary(r6,cluster = c("ind_reest"))$coefficients[,"Cluster s.e."])
 
-stargazer(r4, r5, r6, type="text", header=FALSE, title="PANES Eligibility, Participation & Political Support for Government", 
+#Additional controls for pretreatment characteristics of household members, log per-capita income, age, education, gender of HH, local indicators, separate indicators for missing values of each of these variables
+
+#No score control w/household characteristic controls
+r7 <- felm(data=reg_panes, sup07 ~ eligible + geo + bl_medad + lnbl_ytoth_pc + bl_hhsize + bl_meduc + missbl_medad + misslnbl_ytoth_pc + missbl_hhsize + missbl_meduc + sexo + edad + aniosed07 + misssexo + missedad + missaniosed|0|0|ind_reest)
+#Create clustered se for stargazer
+cluster_se7 <- as.vector(summary(r7,cluster = c("ind_reest"))$coefficients[,"Cluster s.e."])
+
+#Linear score control w/household characteristic controls
+r8 <- felm(data=reg_panes, sup07 ~ eligible + ind_reest + eligible*ind_reest + geo + bl_medad + lnbl_ytoth_pc + bl_hhsize + bl_meduc + missbl_medad + misslnbl_ytoth_pc + missbl_hhsize + missbl_meduc + sexo + edad + aniosed07 + misssexo + missedad + missaniosed|0|0|ind_reest)
+#Create clustered se for stargazer
+cluster_se8 <- as.vector(summary(r8,cluster = c("ind_reest"))$coefficients[,"Cluster s.e."])
+
+#Quadratic score control w/household characteristic controls
+r9 <- felm(data=reg_panes, sup07 ~ eligible + ind_reest_sqd + ind_reest + eligible*ind_reest + eligible*ind_reest_sqd + geo + bl_medad + lnbl_ytoth_pc + bl_hhsize + bl_meduc + missbl_medad + misslnbl_ytoth_pc + missbl_hhsize + missbl_meduc + sexo + edad + aniosed07 + misssexo + missedad + missaniosed|0|0|ind_reest)
+#Create clustered se for stargazer
+cluster_se9 <- as.vector(summary(r9,cluster = c("ind_reest"))$coefficients[,"Cluster s.e."])
+
+#Display results
+stargazer(r4, r5, r6, r7, r8, r9, type="html", header=FALSE, title="PANES Eligibility, Participation & Political Support for Government", 
                      style="qje", 
-                     se = list(r4$cluster_se4, r5$cluster_se5, r6$cluster_se6),
-                     covariate.labels = c("Eligibility", "Income Score", "Income Score Sqrd"),
-                     dep.var.labels.include = TRUE,
-                     omit = "Constant",
-                     add.lines = list(c("Score controls", "None", "Linear", "Quadratic")))
+                     se = list(r4$cluster_se4, r5$cluster_se5, r6$cluster_se6, r7$cluster_se7, r8$cluster_se8, r9$cluster_se9),
+                     covariate.labels = c("Government Support '07"),
+                     dep.var.labels.include = FALSE,
+                     omit = c("Constant", "ind_reest", "ind_reest_sqd", "lnbl_ytoth_pc", "edad", "aniosed07" ,"sexo", "geo", "misssexo", "missedad", "missaniosed", "misslnbl_ytoth_pc", "bl_hhsize", "bl_medad", "bl_meduc", "missbl_hhsize", "missbl_medad", "missbl_meduc"),
+                     omit.stat = c("f", "rsq", "adj.rsq","ser"),
+                     add.lines = list(c("Score controls", "None", "Linear", "Quadratic", "None", "Linear", "Quadratic"), c("Other controls", "No", "No", "No", "Yes", "Yes", "Yes")))
+
 ```
 
-
 **Answer:**
-Coefficients not right
-
+Explain the difference between these specifications and interpret their coefficients.
+The first three models represent different functional forms. By changing the polynomial of the standardized income score control variable, we're manipulating the slope. Because the coefficients are significant and robust across all three forms we can be confident that a linear regression appropriately represents the relationship between PANES receipt and government support. Similarly, when each of these forms include additional controls, we don't see much change in the significance/magnitude of the coefficient, meaning we our explanatory variable accounts for a lot of the variation in 2007 government support. Overall, households eligible for PANES have a higher level of support for government (between 11 and 13%).
 
 
 ## **Question 17: What is the point of including all of these specifications?**
 
 **Answer:**
-These specifications show that linear regressions capture the relationship fine and we aren't representing a gap between the treatment and non-treatment groups that aren't there in reality.
+This table is testing the appropriate functional form of our regression. These specifications show that linear regressions capture the relationship fine and we aren't confusing non-linearity for discontinuity (representing a gap between the treatment and non-treatment groups that isn't there in reality).
 
 
 ## **Question 18: Using the coefficients estimated above, write out the function you would use to predict the probability a household supports the current government based on their predicted income score: **
 
-**a) If they are eligible for the transfer using the results from column 1.**
-
-**b) If they are not eligible for the transfer using the results from column 1.**
-
-**c) If they are eligible for the transfer using the results from column 2.**
-
-**d) If they are not eligible for the transfer using the results from column 2.**
-
-**e) If they are eligible for the transfer using the results from column 3.**
-
-**f) If they are not eligible for the transfer using the results from column 3.**
+```{r, Q18, results='asis'}
+#Display results
+stargazer(r4, r5, r6, r7, r8, r9, type="html", header=FALSE, title="PANES Eligibility, Participation & Political Support for Government", 
+                     style="qje", 
+                     se = list(r4$cluster_se4, r5$cluster_se5, r6$cluster_se6, r7$cluster_se7, r8$cluster_se8, r9$cluster_se9),
+                     covariate.labels = c("Eligible for PANES"),
+                     dep.var.labels.include = FALSE,
+                     omit = c("lnbl_ytoth_pc", "edad", "aniosed07" ,"sexo", "geo", "misssexo", "missedad", "missaniosed", "misslnbl_ytoth_pc", "bl_hhsize", "bl_medad", "bl_meduc", "missbl_hhsize", "missbl_medad", "missbl_meduc"),
+                     omit.stat = c("f", "rsq", "adj.rsq","ser"),
+                     add.lines = list(c("Score controls", "None", "Linear", "Quadratic", "None", "Linear", "Quadratic"), c("Other controls", "No", "No", "No", "Yes", "Yes", "Yes")))
+```
 
 **Answer:**
 
+
+**a) If they are eligible for the transfer using the results from column 1.**
+constant + eligible(1)= 90.1% likely to support the government among those eligible
+
+**b) If they are not eligible for the transfer using the results from column 1.**
+constant + eligible(0)= 77.2% likely to support the government
+
+**c) If they are eligible for the transfer using the results from column 2.**
+constant + eligible(1) + income_score + eligible(1)Xincome_score=-104.5% likely to support government (doesn't make sense given some coefficients are insignificant)
+
+**d) If they are not eligible for the transfer using the results from column 2.**
+constant + eligible(0) + income_score + eligible(0)Xincome_score= 76.1% likely to support government (doesn't make sense given some coefficients are insignificant)
+
+**e) If they are eligible for the transfer using the results from column 3.**
+constant + eligible(1) + income_score + income_score^2 + eligible(1)Xincome_score + eligible(1)Xincome_score^2= 255.846% likely to support government (doesn't make sense given some coefficients are insignificant)
+
+**f) If they are not eligible for the transfer using the results from column 3.**
+constant + eligible(0) + income_score + income_score^2 + eligible(0)Xincome_score + eligible(0)Xincome_score^2= 255.846% likely to support government (doesn't make sense given some coefficients are insignificant)= -38.876% likely to support the government
 
 
 ## **Question 19: How narrow is the "bandwidth" used by the authors. Why does this matter? Check that the results are robust to a narrower bandwidth. **
 
 **Code:**
-```{r}
+```{r, Q19, results='asis'}
+#Narrow bandwidth to specific observations
+reg_panes_newband <- subset(reg_panes, ind_reest>-0.015 & ind_reest<0.015)
+View(reg_panes_newband)
+
+#Running regressions
+#No polynomial
+r10 <- felm(data=reg_panes_newband, sup07 ~ eligible|0|0|ind_reest)
+#Create clustered se for stargazer
+cluster_se10 <- as.vector(summary(r10,cluster = c("ind_reest"))$coefficients[,"Cluster s.e."])
+
+#First order polynomial
+r11 <- felm(data=reg_panes_newband, sup07 ~ eligible + ind_reest + eligible*ind_reest|0|0|ind_reest)
+#Create clustered se for stargazer
+cluster_se11 <- as.vector(summary(r11,cluster = c("ind_reest"))$coefficients[,"Cluster s.e."])
+
+#Quadratic polynomial
+r12 <- felm(data=reg_panes_newband, sup07 ~ eligible + ind_reest_sqd + eligible*ind_reest + eligible*ind_reest_sqd|0|0|ind_reest)
+#Create clustered se for stargazer
+cluster_se12 <- as.vector(summary(r12,cluster = c("ind_reest"))$coefficients[,"Cluster s.e."])
+
+#Additional controls for pretreatment characteristics of household members, log per-capita income, age, education, gender of HH, local indicators, separate indicators for missing values of each of these variables
+
+#No score control w/household characteristic controls
+r13 <- felm(data=reg_panes_newband, sup07 ~ eligible + geo + bl_medad + lnbl_ytoth_pc + bl_hhsize + bl_meduc + missbl_medad + misslnbl_ytoth_pc + missbl_hhsize + missbl_meduc + sexo + edad + aniosed07 + misssexo + missedad + missaniosed|0|0|ind_reest)
+#Create clustered se for stargazer
+cluster_se13 <- as.vector(summary(r13,cluster = c("ind_reest"))$coefficients[,"Cluster s.e."])
+
+#Linear score control w/household characteristic controls
+r14 <- felm(data=reg_panes_newband, sup07 ~ eligible + ind_reest + eligible*ind_reest + geo + bl_medad + lnbl_ytoth_pc + bl_hhsize + bl_meduc + missbl_medad + misslnbl_ytoth_pc + missbl_hhsize + missbl_meduc + sexo + edad + aniosed07 + misssexo + missedad + missaniosed|0|0|ind_reest)
+#Create clustered se for stargazer
+cluster_se14 <- as.vector(summary(r14,cluster = c("ind_reest"))$coefficients[,"Cluster s.e."])
+
+#Quadratic score control w/household characteristic controls
+r15 <- felm(data=reg_panes_newband, sup07 ~ eligible + ind_reest_sqd + ind_reest + eligible*ind_reest + eligible*ind_reest_sqd + geo + bl_medad + lnbl_ytoth_pc + bl_hhsize + bl_meduc + missbl_medad + misslnbl_ytoth_pc + missbl_hhsize + missbl_meduc + sexo + edad + aniosed07 + misssexo + missedad + missaniosed|0|0|ind_reest)
+#Create clustered se for stargazer
+cluster_se15 <- as.vector(summary(r15,cluster = c("ind_reest"))$coefficients[,"Cluster s.e."])
+
+
+#Display results
+stargazer(r10, r11, r12, r13, r14, r15, type="html", header=FALSE, title="(0.03 BANDWIDTH) PANES Eligibility, Participation & Political Support for Government", 
+                     style="qje", 
+                     se = list(r10$cluster_se10, r11$cluster_se11, r12$cluster_se12, r13$cluster_se13, r14$cluster_se14, r15$cluster_se15),
+                     covariate.labels = c("Government Support '07"),
+                     dep.var.labels.include = FALSE,
+                     omit = c("Constant", "ind_reest", "ind_reest_sqd", "lnbl_ytoth_pc", "edad", "aniosed07" ,"sexo", "geo", "misssexo", "missedad", "missaniosed", "misslnbl_ytoth_pc", "bl_hhsize", "bl_medad", "bl_meduc", "missbl_hhsize", "missbl_medad", "missbl_meduc"),
+                     omit.stat = c("f", "rsq", "adj.rsq","ser"),
+                     add.lines = list(c("Score controls", "None", "Linear", "Quadratic", "None", "Linear", "Quadratic"), c("Other controls", "No", "No", "No", "Yes", "Yes", "Yes")))
+
+
+#Display results
+stargazer(r4, r5, r6, r7, r8, r9, type="html", header=FALSE, title="(0.04 BANDWIDTH) PANES Eligibility, Participation & Political Support for Government", 
+                     style="qje", 
+                     se = list(r4$cluster_se4, r5$cluster_se5, r6$cluster_se6, r7$cluster_se7, r8$cluster_se8, r9$cluster_se9),
+                     covariate.labels = c("Government Support '07"),
+                     dep.var.labels.include = FALSE,
+                     omit = c("Constant", "ind_reest", "ind_reest_sqd", "lnbl_ytoth_pc", "edad", "aniosed07" ,"sexo", "geo", "misssexo", "missedad", "missaniosed", "misslnbl_ytoth_pc", "bl_hhsize", "bl_medad", "bl_meduc", "missbl_hhsize", "missbl_medad", "missbl_meduc"),
+                     omit.stat = c("f", "rsq", "adj.rsq","ser"),
+                     add.lines = list(c("Score controls", "None", "Linear", "Quadratic", "None", "Linear", "Quadratic"), c("Other controls", "No", "No", "No", "Yes", "Yes", "Yes")))
+
 
 ```
 
-
 **Answer:**
+The current bandwidth is 0.04 standard deviations (given the income score is standardized, SDs become our units) around the cutoff (0). This matters because we want to make sure we're looking at a small enough group of households so that their characteristics are virtually the same except for the fact that some had a slightly lower income score than others. 
+
+When we perform analysis with a narrower bandwidth (0.03 standard deviations around the cutoff), our results are still significant but the magnitude of our coefficients are smaller and our standard errors are greater. 
 
 
 ## **Question 20: The authors attribute these effects to the causal effect of receiving the government transfers. What is the implied assumption behind this interpretation?**
 
 **Answer:**
+The assumption is that there aren't other programs/resources/factors that benefit households at the same cutoff PANES uses. If there were, the treatment effect the researchers measured cannot be distinguished from other treatments assigned at the same threshold.
 
+Other implications...
+- It is implied that the assignment of government transfers (the threshold) was "as good as random"
+- It is also implied that absent receipt of PANES (treatment) government support (outcome) would be continuous throughout treatment and control households. This is the continuity assumption, key to the regression discontinuity method.
+- Spillover effects where PANES recipients amplify the generally less positive opinions of government from households that did not receive PANES. Researchers checked whether this was a concern by using a different income score regressed along the government support variable and found little change, suggesting small spillover effects.
 
 
 ## **Question 21: What evidence do they provide to support this assumption?**
-
-**Answer:**
- 
+**Answer:** 
+The researchers explained that the score was composed from a survey they developed themselves, indicating that no standard scores/factors were used to determine eligibility. Instead the score was a unique mix of many factors. If the cutoff score was similar to other publicly known government transfer cutoffs, we'd likely see some selection bias around the cutoff point in figure 1  (significant increase in number of households just below threshold and significant decrease in number of households just above the threshold). 
 
 ## **Question 22: Was this threshold eligibility score specifically designed for this particular program? Why does this matter?**
 
 **Answer:**
+The threshold eligibility score was specifically designed for this particular program by outside researchers. It is important that the threshold not be a publicly known score in order to avoid manipulation of households' predicted income scores, i.e. selection effects. Similarly, the program designers avoided sharing the score threshold and details with government bureaucrats to avoid anyone using their power to manipulate who received PANES. As mentioned above, when designing their own score, designers can avoid biasing their estimated treatment effect by setting the cutoff in the same place as other programs (e.g. other government transfers).
+
+Because the threshold was kept a secret, and implementation was sharp and "honest", assignment to the program near the threshold is “as good as random.”
 
 
-
-
+--
 
 # Submission instructions:
 
